@@ -1,0 +1,200 @@
+"""Código para proyecto del Taller de Innovación, para mostrar las rutas a las diferentes aulas de la Facultad
+de Ciencias de la Tierra y el Espacio, de la carrera de Geoinformáica, 4to semestre 2026"""
+
+
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Navegación FACITE - UAS (Rutas SIG Integradas)</title>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css"/>
+  <style>
+    #map {
+      height: 100vh;
+      margin: 0;
+      background-color: #ffffff;
+    }
+    body { margin: 0; }
+    .info-panel {
+      position: absolute;
+      top: 15px;
+      left: 60px;
+      z-index: 1000;
+      background: rgba(255, 255, 255, 0.95);
+      padding: 12px;
+      border-radius: 6px;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+      max-width: 260px;
+    }
+    .info-panel h2 { margin: 0 0 4px 0; font-size: 14px; color: #0b3c5d; }
+    .info-panel p { margin: 0; font-size: 11px; color: #333; }
+    .leaflet-popup-content img {
+      max-width: 100%;
+      height: auto;
+      border-radius: 4px;
+      margin-top: 5px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="info-panel">
+  <h2>Navegación FACITE - UAS</h2>
+  <p>Proyecto Taller de Innovación Tecnológica, Emprendimiento y Vinculación Empresarial. Selecciona un aula para ver su ruta desde la entrada.</p>
+</div>
+
+<div id="map"></div>
+
+<script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+
+<script>
+
+// 1. INICIALIZAR EL ESPACIO DE TRABAJO
+var map = L.map('map', {
+    crs: L.CRS.Simple,
+    minZoom: -2,
+    maxZoom: 2
+});
+
+var altoImagen = 1242;
+var anchoImagen = 3480;
+var boundsImagen = [[0, 0], [altoImagen, anchoImagen]];
+
+// Se ajusta la vista al encuadre original para mantener la proporción de las coordenadas
+map.fitBounds(boundsImagen);
+
+
+// 2. LA FUNCIÓN DE TRASLACIÓN
+function transformarCoordenadas(sigX, sigY) {
+    var A = 54.25;  
+    var B = -1.85;  
+    var C = 1385.0; 
+    var D = 1.15;   
+    var E = 38.50;  
+    var F = 525.0;  
+
+    var pixelX = C + (sigX * A) + (sigY * B);
+    var pixelY = F + (sigX * D) + (sigY * E);
+
+    return [pixelY, pixelX]; 
+}
+
+
+// 3. BASE DE DATOS DE RUTAS EXPORTADAS DESDE ARCMAP
+var geojsonRutasArcMap = {
+  "type": "FeatureCollection",
+  "features": [
+    {"type":"Feature","properties":{"Ruta":"Aula 1"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[-7.41162109375,-4.81689453125],[-19.96630859375,-5.3314208984375],[-21.551025390625,-4.85931396484375]]}},
+    {"type":"Feature","properties":{"Ruta":"Aula 2"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[-13.8682861328125,-5.09039306640625],[-14.290771484375,-4.6475830078125]]}},
+    {"type":"Feature","properties":{"Ruta":"Aula 3"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[-12.44781494140625,-5.0233154296875],[-13.02081298828125,-4.60528564453125]]}},
+    {"type":"Feature","properties":{"Ruta":"Aula 4"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[-3.5936279296875,-4.61688232421875],[-4.4271240234375,-4.2666015625]]}},
+    {"type":"Feature","properties":{"Ruta":"Área de Astronomía"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[-0.7388916015625,-4.46728515625],[-1.4849853515625,-4.181884765625]]}},
+    {"type":"Feature","properties":{"Ruta":"Aula 5"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[3.75469970703125,-4.22210693359375]]}},
+    {"type":"Feature","properties":{"Ruta":"Aula 6"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[12.22607421875,-4.106201171875],[13.2532958984375,-3.719482421875]]}},
+    {"type":"Feature","properties":{"Ruta":"Aula 7"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[14.5120849609375,-4.0426025390625],[15.343505859375,-3.5078125]]}},
+    {"type":"Feature","properties":{"Ruta":"Instrumental Geodésico y Astronómico"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[15.76727294921875,-3.93109130859375],[16.0020751953125,-3.4124755859375]]}},
+    {"type":"Feature","properties":{"Ruta":"Laboratorio de Cartografía y Fotogrametría"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[1.5496826171875,-7.99798583984375],[-13.182373046875,-8.46368408203125],[-20.71771240234375,-8.71771240234375],[-21.551025390625,-7.9708251953125]]}},
+    {"type":"Feature","properties":{"Ruta":"Laboratorio de Geomática"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[1.5496826171875,-7.99798583984375],[-13.58197021484375,-8.47711181640625],[-14.31201171875,-7.6533203125]]}},
+    {"type":"Feature","properties":{"Ruta":"Dirección"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[1.5496826171875,-7.99798583984375],[-5.7523193359375,-8.22882080078125],[-5.71832275390625,-7.29339599609375]]}},
+    {"type":"Feature","properties":{"Ruta":"Control Escolar"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[1.5496826171875,-7.99798583984375],[-2.85540771484375,-8.13720703125],[-3.08587646484375,-7.1937255859375],[-3.205810546875,-6.4404296875]]}},
+    {"type":"Feature","properties":{"Ruta":"Baños Hombres"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[1.5496826171875,-7.99798583984375],[21.80609130859375,-7.29949951171875],[21.55828857421875,-6.24468994140625]]}},
+    {"type":"Feature","properties":{"Ruta":"Baño Mujeres"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[1.5496826171875,-7.99798583984375],[16.576904296875,-7.47979736328125],[16.54168701171875,-6.53668212890625]]}},
+    {"type":"Feature","properties":{"Ruta":"Biblioteca"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[1.5496826171875,-7.99798583984375],[7.13909912109375,-7.80517578125],[7.0355224609375,-6.9473876953125]]}},
+    {"type":"Feature","properties":{"Ruta":"Coordinación de Vinculacion y Difusión"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[1.5496826171875,-7.99798583984375],[5.69268798828125,-7.8551025390625],[5.580322265625,-6.8944091796875]]}},
+    {"type":"Feature","properties":{"Ruta":"Areas de Profesores"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[-0.24957275390625,-4.44171142578125],[-0.44000244140625,-1.79620361328125],[1.655517578125,-1.7750244140625],[1.8037109375,-2.34649658203125],[-10.24029541015625,-2.89678955078125],[-13.6693115234375,-2.89678955078125],[-14.37548828125,-1.9805908203125]]}},
+    {"type":"Feature","properties":{"Ruta":"Sala de Usos Multiple - Tutorias"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[-0.24951171875,-4.44171142578125],[-0.30078125,-3.7305908203125],[-0.44000244140625,-1.79620361328125],[1.655517578125,-1.7750244140625],[1.8037109375,-2.34649658203125],[-11.19281005859375,-2.89678955078125],[-11.11578369140625,-1.8958740234375]]}},
+    {"type":"Feature","properties":{"Ruta":"Auditorio"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[-0.24951171875,-4.44171142578125],[-0.30078125,-3.7305908203125],[-0.44000244140625,-1.79620361328125],[1.655517578125,-1.7750244140625],[1.8037109375,-2.34649658203125],[-1.71148681640625,-2.507080078125],[-1.67547607421875,-1.5784912109375]]}},
+    {"type":"Feature","properties":{"Ruta":"Área de Posgrado"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[-0.24951171875,-4.44171142578125],[-0.30078125,-3.7305908203125],[-0.44000244140625,-1.79620361328125],[1.655517578125,-1.7750244140625],[1.8037109375,-2.34649658203125],[3.79388427734375,-2.3013916015625],[12.3870849609375,-1.96551513671875],[12.8779296875,-1.12652587890625]]}},
+    {"type":"Feature","properties":{"Ruta":"Centro de Computo"},"geometry":{"type":"LineString","coordinates":[[1.73248291015625,-8.605712890625],[0.12371826171875,-6.89129638671875],[-0.32080078125,-3.99139404296875],[1.73248291015625,-3.885498046875],[1.88067626953125,-4.330078125],[-0.24951171875,-4.44171142578125],[-0.30078125,-3.7305908203125],[-0.44000244140625,-1.79620361328125],[1.655517578125,-1.7750244140625],[1.8037109375,-2.34649658203125],[3.79388427734375,-2.3013916015625],[3.7811279296875,-1.4439697265625]]}}
+  ]
+};
+
+
+// 4. POLÍGONOS DE LAS PUERTAS
+var geojsonData = {"type":"FeatureCollection","crs":{"type":"name","properties":{"name":"EPSG:32613"}},"features":[{"type":"Feature","id":0,"geometry":{"type":"Polygon","coordinates":[[[-13.8660888671875,-5.65142822265625],[-13.873779296875,-3.67279052734375],[-14.8096923828125,-3.6763916015625],[-14.802001953125,-5.65509033203125],[-13.8660888671875,-5.65142822265625]]]},"properties":{"puertas.FID":0,"puertas.Id":0,"puertas.Espacio":"Aula 2","Fotografias.csv.FID":0,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Aula2.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":1,"geometry":{"type":"Polygon","coordinates":[[[-13.49029541015625,-3.64208984375],[-13.49798583984375,-5.66668701171875],[-12.57769775390625,-5.67022705078125],[-12.57012939453125,-3.6455078125],[-13.49029541015625,-3.64208984375]]]},"properties":{"puertas.FID":1,"puertas.Id":0,"puertas.Espacio":"Aula 3","Fotografias.csv.FID":1,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Aula3.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":2,"geometry":{"type":"Polygon","coordinates":[[[-4.90850830078125,-3.38897705078125],[-4.8544921875,-5.20501708984375],[-4.07989501953125,-5.1820068359375],[-4.1339111328125,-3.36602783203125],[-4.90850830078125,-3.38897705078125]]]},"properties":{"puertas.FID":2,"puertas.Id":0,"puertas.Espacio":"Aula 4","Fotografias.csv.FID":2,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Aula4.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":3,"geometry":{"type":"Polygon","coordinates":[[[-1.8682861328125,-3.25360107421875],[-1.839599609375,-5.02789306640625],[-1.12640380859375,-5.01641845703125],[-1.155029296875,-3.24212646484375],[-1.8682861328125,-3.25360107421875]]]},"properties":{"puertas.FID":3,"puertas.Id":0,"puertas.Espacio":"Área de Astronomía","Fotografias.csv.FID":3,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Astronomia.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":4,"geometry":{"type":"Polygon","coordinates":[[[3.31072998046875,-3.052978515625],[3.28472900390625,-4.8988037109375],[4.10150146484375,-4.910400390625],[4.12750244140625,-3.0645751953125],[3.31072998046875,-3.052978515625]]]},"properties":{"puertas.FID":4,"puertas.Id":0,"puertas.Espacio":"Aula 5","Fotografias.csv.FID":4,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Aula5.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":5,"geometry":{"type":"Polygon","coordinates":[[[12.67633056640625,-2.70648193359375],[12.74432373046875,-4.69940185546875],[13.6417236328125,-4.6688232421875],[13.573486328125,-2.67578125],[12.67633056640625,-2.70648193359375]]]},"properties":{"puertas.FID":5,"puertas.Id":0,"puertas.Espacio":"Aula 6","Fotografias.csv.FID":5,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Aula6.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":6,"geometry":{"type":"Polygon","coordinates":[[[14.95391845703125,-2.65277099609375],[15.00469970703125,-4.3624267578125],[15.779296875,-4.3394775390625],[15.728515625,-2.62982177734375],[14.95391845703125,-2.65277099609375]]]},"properties":{"puertas.FID":6,"puertas.Id":0,"puertas.Espacio":"Aula 7","Fotografias.csv.FID":6,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Aula7.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":7,"geometry":{"type":"Polygon","coordinates":[[[3.41949462890625,-2.29998779296875],[4.09429931640625,-2.3026123046875],[4.10211181640625,-0.3623046875],[3.4271240234375,-0.35968017578125],[3.41949462890625,-2.29998779296875]]]},"properties":{"puertas.FID":7,"puertas.Id":0,"puertas.Espacio":"Centro de Computo","Fotografias.csv.FID":7,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\CentroComputo.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":8,"geometry":{"type":"Polygon","coordinates":[[[-1.16668701171875,-2.453369140625],[-1.130126953125,-0.652587890625],[-2.3323974609375,-0.62811279296875],[-2.36907958984375,-2.42889404296875],[-1.16668701171875,-2.453369140625]]]},"properties":{"puertas.FID":8,"puertas.Id":0,"puertas.Espacio":"Auditorio","Fotografias.csv.FID":8,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Auditorio.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":9,"geometry":{"type":"Polygon","coordinates":[[[-10.7720947265625,-2.7332763671875],[-10.7720947265625,-1.01348876953125],[-11.48529052734375,-1.01348876953125],[-11.48529052734375,-2.7332763671875],[-10.7720947265625,-2.7332763671875]]]},"properties":{"puertas.FID":9,"puertas.Id":0,"puertas.Espacio":"Sala de Usos Multiple - Tutorias","Fotografias.csv.FID":9,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\SalaJuntas.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":10,"geometry":{"type":"Polygon","coordinates":[[[-14.66607666015625,-1.0767822265625],[-14.61138916015625,-2.9005126953125],[-14.03619384765625,-2.88330078125],[-14.09088134765625,-1.05950927734375],[-14.66607666015625,-1.0767822265625]]]},"properties":{"puertas.FID":10,"puertas.Id":0,"puertas.Espacio":"Areas de Profesores","Fotografias.csv.FID":10,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\AreaProfes.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":11,"geometry":{"type":"Polygon","coordinates":[[[-21.95001220703125,-3.97601318359375],[-21.87628173828125,-5.7633056640625],[-21.13238525390625,-5.73260498046875],[-21.20599365234375,-3.9453125],[-21.95001220703125,-3.97601318359375]]]},"properties":{"puertas.FID":11,"puertas.Id":0,"puertas.Espacio":"Aula 1","Fotografias.csv.FID":11,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Aula1.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":12,"geometry":{"type":"Polygon","coordinates":[[[-21.981201171875,-6.9495849609375],[-21.9727783203125,-8.70947265625],[-21.07110595703125,-8.7052001953125],[-21.07958984375,-6.9453125],[-21.981201171875,-6.9495849609375]]]},"properties":{"puertas.FID":12,"puertas.Id":0,"puertas.Espacio":"Laboratorio de Cartografía y Fotogrametría","Fotografias.csv.FID":12,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\LabCarto.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":13,"geometry":{"type":"Polygon","coordinates":[[[-14.7001953125,-6.62030029296875],[-14.7122802734375,-8.38031005859375],[-13.8782958984375,-8.3861083984375],[-13.8660888671875,-6.6259765625],[-14.7001953125,-6.62030029296875]]]},"properties":{"puertas.FID":13,"puertas.Id":0,"puertas.Espacio":"Laboratorio de Geomática","Fotografias.csv.FID":13,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\LabGeom.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":14,"geometry":{"type":"Polygon","coordinates":[[[-7.12872314453125,-6.42657470703125],[-7.08392333984375,-8.0465087890625],[-4.2528076171875,-7.96807861328125],[-4.297607421875,-6.34832763671875],[-7.12872314453125,-6.42657470703125]]]},"properties":{"puertas.FID":14,"puertas.Id":0,"puertas.Espacio":"Dirección","Fotografias.csv.FID":14,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Direccion.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":15,"geometry":{"type":"Polygon","coordinates":[[[-3.74468994140625,-6.302001953125],[-3.7344970703125,-6.64630126953125],[-2.69158935546875,-6.61572265625],[-2.70172119140625,-6.27130126953125],[-3.74468994140625,-6.302001953125]]]},"properties":{"puertas.FID":15,"puertas.Id":0,"puertas.Espacio":"Control Escolar","Fotografias.csv.FID":15,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\ControlEscolar.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":16,"geometry":{"type":"Polygon","coordinates":[[[5.19769287109375,-7.7208251953125],[6.16412353515625,-7.7080078125],[6.14129638671875,-5.96710205078125],[5.1746826171875,-5.97991943359375],[5.19769287109375,-7.7208251953125]]]},"properties":{"puertas.FID":16,"puertas.Id":0,"puertas.Espacio":"Coordinación de Vinculación y Difusión","Fotografias.csv.FID":16,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Vinculacion.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":17,"geometry":{"type":"Polygon","coordinates":[[[6.44769287109375,-5.93389892578125],[6.4622802734375,-7.67498779296875],[7.38250732421875,-7.66729736328125],[7.36810302734375,-5.92620849609375],[6.44769287109375,-5.93389892578125]]]},"properties":{"puertas.FID":17,"puertas.Id":0,"puertas.Espacio":"Biblioteca","Fotografias.csv.FID":17,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Biblioteca.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":18,"geometry":{"type":"Polygon","coordinates":[[[16.072509765625,-7.268310546875],[16.98468017578125,-7.28070068359375],[17.0076904296875,-5.578125],[16.09552001953125,-5.5657958984375],[16.072509765625,-7.268310546875]]]},"properties":{"puertas.FID":18,"puertas.Id":0,"puertas.Espacio":"Baño Mujeres","Fotografias.csv.FID":18,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\BanoMuj.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":19,"geometry":{"type":"Polygon","coordinates":[[[21.14190673828125,-7.099609375],[21.98492431640625,-7.0845947265625],[21.95428466796875,-5.3590087890625],[21.111328125,-5.3740234375],[21.14190673828125,-7.099609375]]]},"properties":{"puertas.FID":19,"puertas.Id":0,"puertas.Espacio":"Baños Hombres","Fotografias.csv.FID":19,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\BanoHom.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":20,"geometry":{"type":"Polygon","coordinates":[[[15.94647216796875,-2.6923828125],[15.8905029296875,-4.08148193359375],[16.05450439453125,-4.21087646484375],[16.1019287109375,-2.7744140625],[15.94647216796875,-2.6923828125]]]},"properties":{"puertas.FID":20,"puertas.Id":0,"puertas.Espacio":"Instrumental Geodésico y Astronómico","Fotografias.csv.FID":20,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Instrumental.jpg\"width=\"400\" /\u003e"}},{"type":"Feature","id":21,"geometry":{"type":"Polygon","coordinates":[[[12.75848388671875,-0.1903076171875],[12.76287841796875,-2.07122802734375],[13.00872802734375,-2.12298583984375],[12.99591064453125,-0.09967041015625],[12.75848388671875,-0.1903076171875]]]},"properties":{"puertas.FID":21,"puertas.Id":0,"puertas.Espacio":"Área de Posgrado","Fotografias.csv.FID":21,"Fotografias.csv.Fotografias":"\u003cimg src =\"C:\\Taller\\Posgrado.jpg\"width=\"400\" /\u003e"}}]}
+
+
+// 4.5. BASE DE DATOS DE LA FACHADA GENERAL 
+var esriFachadaEdificio = {"displayFieldName":"","fieldAliases":{"FID":"FID","Id":"Id"},"geometryType":"esriGeometryPolygon","spatialReference":{"wkid":32613,"latestWkid":32613},"fields":[{"name":"FID","type":"esriFieldTypeOID","alias":"FID"},{"name":"Id","type":"esriFieldTypeInteger","alias":"Id"}],"features":[{"attributes":{"FID":0,"Id":0},"geometry":{"rings":[[[-22.743155426345766,-7.001237515360117],[22.28707879036665,-5.3777977805584669],[22.312478839419782,-7.0965345501899719],[-22.702027409337461,-8.6273956093937159],[-22.743155426345766,-7.001237515360117]]]}},{"attributes":{"FID":1,"Id":0},"geometry":{"rings":[[[-22.819162087514997,-3.9960149805992842],[22.784381355158985,-2.3465522415935993],[22.744279702194035,-5.3100643120706081],[22.28707879036665,-5.3777977805584669],[-22.743155426345766,-7.001237515360117],[-22.819162087514997,-3.9960149805992842]]]}},{"attributes":{"FID":2,"Id":0},"geometry":{"rings":[[[22.787556361508994,-2.340202228893574],[-22.815987081164987,-3.9896649678992588],[-22.904338817010196,-0.49633134881132435],[23.204655625028042,1.2240987608385723],[23.213122309287517,0.95316488502449204],[22.832121546482174,0.95316488502449204],[22.787556361508994,-2.340202228893574]]]}},{"attributes":{"FID":3,"Id":0},"geometry":{"rings":[[[-0.44967994187027216,0.33501392044126987],[-11.876674677245319,-0.22901289723813534],[-12.094777038109276,0.75309887560879452],[-12.14316553057396,1.7579723641514895],[-12.020438339862423,2.7564963803068472],[-11.730150873070636,3.719743680226542],[-11.280712759012868,4.6198089866411198],[-10.685144221248827,5.4306174048291478],[-9.9606988821667102,6.1286798123982482],[-9.1283639254890545,6.6937733392337382],[-8.2122520974951154,7.1095272241086427],[-7.2389031606863039,7.3638970756872606],[-6.2365150367841125,7.4495137985795736],[-5.3047294366469293,7.3756067853877365],[-4.3962457501273553,7.1557339981907884],[-3.5337831610958537,6.7953939730159147],[-2.738909966740751,6.3035980233399682],[-2.0315042017744158,5.6926448869094042],[-1.4292565323956703,4.9778131612915351],[-0.94722785153985622,4.1769792196692075],[-0.58238268376596913,3.2613965610409368],[-0.3747494724581788,2.2979174222990633],[-0.33010141522430558,1.3133311375002095],[-0.44967994187027216,0.33501392044126987]]]}}]}
+
+
+// 4.6. CARGAR Y DIBUJAR LA ESTRUCTURA DE LA FACHADA GENERAL
+esriFachadaEdificio.features.forEach(function(feature) {
+    feature.geometry.rings.forEach(function(ring) {
+        // Mapear cada par [X, Y] pasándolo por la matriz de transformación
+        var puntosTransformados = ring.map(function(coord) {
+            return transformarCoordenadas(coord[0], coord[1]);
+        });
+
+        // Crear el polígono estructural y añadirlo al mapa de fondo
+        L.polygon(puntosTransformados, {
+            color: "#34495e",      
+            weight: 3,            
+            fillColor: "#2c3e50",  
+            fillOpacity: 0.7,     
+            interactive: false    
+        }).addTo(map);
+    });
+});
+
+
+// 6. CONTROLADOR DE CAPA DE RUTA DINÁMICA 
+var capaRutaActiva = null;
+
+function dibujarRutaArcMap(nombreEspacio) {
+    if (capaRutaActiva) {
+        map.removeLayer(capaRutaActiva);
+    }
+
+    capaRutaActiva = L.geoJSON(geojsonRutasArcMap, {
+        filter: function(feature) {
+            return feature.properties.Ruta === nombreEspacio;
+        },
+        style: function() {
+            return {
+                color: '#ffcc00',      
+                weight: 5,             
+                opacity: 0.9,
+                dashArray: '6, 10',    
+                lineCap: 'round'
+            };
+        },
+        coordsToLatLng: function(coords) {
+            return transformarCoordenadas(coords[0], coords[1]);
+        }
+    }).addTo(map);
+}
+
+
+// 7. CARGAR LA CAPA VECTORIAL DE POLÍGONOS (PUERTAS INTERACTIVAS)
+var capaPuertas = L.geoJSON(geojsonData, {
+    style: function () {
+        return {
+            color: "#00ffcc",
+            weight: 2,
+            fillColor: "#00ffcc",
+            fillOpacity: 0.25
+        };
+    },
+    coordsToLatLng: function (coords) {
+        return transformarCoordenadas(coords[0], coords[1]);
+    },
+    onEachFeature: function (feature, layer) {
+        var nombreEspacio = feature.properties["puertas.Espacio"] || "Aula";
+        var etiquetaFoto = feature.properties["Fotografias.csv.Fotografias"] || "";
+        var contenidoPopup = "<b>" + nombreEspacio + "</b><br>" + etiquetaFoto;
+        
+        layer.bindPopup(contenidoPopup);
+
+        layer.on('click', function () {
+            dibujarRutaArcMap(nombreEspacio);
+            layer.openPopup();
+        });
+    }
+}).addTo(map);
+
+</script>
+</body>
+</html>
